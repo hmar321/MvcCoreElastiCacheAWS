@@ -1,4 +1,5 @@
-﻿using MvcCoreElastiCacheAWS.Helpers;
+﻿using Microsoft.Extensions.Caching.Distributed;
+using MvcCoreElastiCacheAWS.Helpers;
 using MvcCoreElastiCacheAWS.Models;
 using Newtonsoft.Json;
 using StackExchange.Redis;
@@ -7,12 +8,12 @@ namespace MvcCoreElastiCacheAWS.Services
 {
     public class ServiceAWSCache
     {
-        private IDatabase cache;
+        private IDistributedCache cache;
         private string idkey;
 
-        public ServiceAWSCache()
+        public ServiceAWSCache(IDistributedCache cache)
         {
-            this.cache = HelperCacheRedis.Connection.GetDatabase();
+            this.cache = cache;
             this.idkey = "cochesfavoritos";
         }
 
@@ -20,7 +21,7 @@ namespace MvcCoreElastiCacheAWS.Services
         {
             //ALMACENAREMOS UNA COLECCION DE COCHES EN FORMATO JSON
             //LAS KEYS DEBEN SER UNICAS PARA CADA USER
-            string jsonCoches = await this.cache.StringGetAsync(this.idkey);
+            string jsonCoches = await this.cache.GetStringAsync(this.idkey);
             if (jsonCoches == null)
             {
                 return null;
@@ -45,7 +46,10 @@ namespace MvcCoreElastiCacheAWS.Services
             string jsonCoches = JsonConvert.SerializeObject(cars);
             //ALMACENAMOS LA COLECCION DENTRO DE CACCHE REDIS
             //INDICANDO QUE LOS DATOS DURARAN 30 MIN
-            await this.cache.StringSetAsync(this.idkey, jsonCoches, TimeSpan.FromMinutes(30));
+            await this.cache.SetStringAsync(this.idkey, jsonCoches, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
         }
         public async Task DeleteCcocheFavoritoAsync(int idcoche)
         {
@@ -58,14 +62,17 @@ namespace MvcCoreElastiCacheAWS.Services
                 //SI NO TENEMOS COCHES ELIMINAMOS LA KEY DE CACHE REDIS
                 if (cars.Count == 0)
                 {
-                    await this.cache.KeyDeleteAsync(this.idkey);
+                    await this.cache.RemoveAsync(this.idkey);
                 }
                 else
                 {
                     //ALMACENAMOS DE NUEVO LOS COCHES SIN EL COCHE ELIMINADO
                     string jsonCoches = JsonConvert.SerializeObject(cars);
                     //ACTUALIZAMOS EL CACHE REDIS
-                    await this.cache.StringSetAsync(this.idkey, jsonCoches, TimeSpan.FromMinutes(30));
+                    await this.cache.SetStringAsync(this.idkey, jsonCoches, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+                    });
                 }
             }
         }
