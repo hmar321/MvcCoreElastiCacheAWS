@@ -13,6 +13,7 @@ namespace MvcCoreElastiCacheAWS.Services
         public ServiceAWSCache()
         {
             this.cache = HelperCacheRedis.Connection.GetDatabase();
+            this.idkey = "cochesfavoritos";
         }
 
         public async Task<List<Coche>> GetCochesFavoritosAsync()
